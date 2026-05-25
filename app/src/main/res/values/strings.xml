@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">音频压缩</string>
+
+    <string-array name="quality_options">
+        <item>320k (CD音质)</item>
+        <item>256k (高品质)</item>
+        <item>192k (中等品质)</item>
+        <item>128k (标准品质)</item>
+        <item>96k (低品质)</item>
+        <item>64k (超低品质)</item>
+    </string-array>
+
+    <string-array name="format_options">
+        <item>mp3</item>
+        <item>m4a</item>
+        <item>ogg</item>
+        <item>wav</item>
+    </string-array>
+
+    <string-array name="channels_options">
+        <item>立体声</item>
+        <item>单声道</item>
+    </string-array>
+
+    <string-array name="volume_options">
+        <item>+20 dB (极限增强)</item>
+        <item>+15 dB (大幅增强)</item>
+        <item>+10 dB (中度增强)</item>
+        <item>+5 dB (轻微增强)</item>
+        <item>0 dB (保持原样)</item>
+        <item>-5 dB (轻微降低)</item>
+        <item>-10 dB (中度降低)</item>
+        <item>-15 dB (大幅降低)</item>
+        <item>-20 dB (极限降低)</item>
+    </string-array>
+</resources>
