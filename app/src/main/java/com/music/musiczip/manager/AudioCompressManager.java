@@ -17,7 +17,9 @@ public class AudioCompressManager {
     // 定义回调接口，用于将处理结果安全地传回 UI 层
     public interface CompressCallback {
         void onStart();
+
         void onSuccess(String outputPath, String resultMessage);
+
         void onError(String errorMessage);
     }
 
@@ -49,9 +51,6 @@ public class AudioCompressManager {
 
     /**
      * 执行音频压缩/提取的主入口
-     *
-     * @param config   压缩配置参数
-     * @param callback 结果回调
      */
     public void compressAudio(CompressConfig config, CompressCallback callback) {
         if (config == null || config.inputPath == null || config.outputPath == null) {
@@ -88,23 +87,42 @@ public class AudioCompressManager {
             try {
                 Log.d(TAG, "FFmpeg 异步任务开始执行...");
 
+                // ==================== 核心修改：使用 asetrate 实现变速又变调（声音变粗且不撕裂） ====================
+                float speed = config.speed;
+
+                // 1. 假设标准的原始采样率是输入或输出设定的采样率（这里以 config.sampleRate 为基准）
+                int baseSampleRate = Integer.parseInt(config.sampleRate);
+
+                // 2. 计算出欺骗播放器的新采样率。比如 44100 * 0.5 = 22050
+                int targetSampleRate = Math.round(baseSampleRate * speed);
+
+                // 3. 约束安全边界：FFmpeg 采样率不能低于 512Hz
+                if (targetSampleRate < 512) {
+                    targetSampleRate = 512;
+                }
+
+                // 4. 组装滤镜链：先改变读取速率（同时改变速度和音调），再强制重采样回用户选定的标准采样率
+                // 这样既能实现不撕裂的变粗放慢，最终输出的音频文件格式又完全标准。
+                String speedFilter = String.format(Locale.US, "asetrate=%d,aresample=%s", targetSampleRate, config.sampleRate);
+                // =============================================================================================
+
                 String command;
-                // 彻底脱离对 Spinner 的依赖，改为直接判断传入的业务参数
+                // 判定是提取音频还是常规压缩
                 if (config.format != null && config.format.contains("extract")) {
-                    // 从视频提取音频并调整速度 (注意：原逻辑中提取未带音量参数，此处保持原样)
+                    // 从视频提取音频
                     command = String.format(Locale.getDefault(),
-                            "-y -i \"%s\" -vn -af \"atempo=%.2f\" -c:a libmp3lame -q:a 0 -ar %s -ac %s \"%s\"",
-                            config.inputPath, config.speed, config.sampleRate, config.channels, config.outputPath);
+                            "-y -i \"%s\" -vn -af \"%s\" -c:a libmp3lame -q:a 0 -ar %s -ac %s \"%s\"",
+                            config.inputPath, speedFilter, config.sampleRate, config.channels, config.outputPath);
                 } else {
-                    // 普通音频压缩、调速、调音量
+                    // 普通音频压缩，加入重构后的速度滤镜和音量
                     command = String.format(Locale.getDefault(),
-                            "-y -i \"%s\" -af \"atempo=%.2f,volume=%s\" -b:a %s -ar %s -ac %s \"%s\"",
-                            config.inputPath, config.speed, config.volume, config.quality, config.sampleRate, config.channels, config.outputPath);
+                            "-y -i \"%s\" -af \"%s,volume=%s\" -b:a %s -ar %s -ac %s \"%s\"",
+                            config.inputPath, speedFilter, config.volume, config.quality, config.sampleRate, config.channels, config.outputPath);
                 }
 
                 Log.d(TAG, "执行 FFmpeg 命令: " + command);
 
-                // 执行 FFmpeg 同步阻塞命令（因为当前处于子线程后台，可以安全阻塞）
+                // 执行 FFmpeg 同步阻塞命令
                 FFmpegSession session = FFmpegKit.execute(command);
 
                 if (ReturnCode.isSuccess(session.getReturnCode())) {
@@ -120,7 +138,7 @@ public class AudioCompressManager {
                         float compressionRatio = inputSize > 0 ? (100f * (inputSize - outputSize) / inputSize) : 0;
 
                         finalResultMessage = String.format(Locale.getDefault(),
-                                "压缩完成!\n原始大小: %.2f MB\n压缩后: %.2f MB\n压缩率: %.1f%%",
+                                "处理完成!\n原始大小: %.2f MB\n处理后: %.2f MB\n文件大小变化: %.1f%%",
                                 inputSize / 1024f / 1024f,
                                 outputSize / 1024f / 1024f,
                                 compressionRatio
@@ -153,7 +171,7 @@ public class AudioCompressManager {
             if (success) {
                 callback.onSuccess(config.outputPath, finalResultMessage);
             } else {
-                String errorMsg = "压缩失败: " + (compressionException != null ? compressionException.getMessage() : "未知错误");
+                String errorMsg = "处理失败: " + (compressionException != null ? compressionException.getMessage() : "未知错误");
                 callback.onError(errorMsg);
             }
         }

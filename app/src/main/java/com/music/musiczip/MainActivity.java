@@ -274,9 +274,17 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
 
     private String getSelectedVolume() {
         String volumeStr = volumeSpinner.getSelectedItem().toString();
-        String dBValue = volumeStr.split(" ")[0];
-        if ("0".equals(dBValue)) return "1.0";
-        return dBValue.replace("+", "").replace("-", "") + "dB";
+        String dBValue = volumeStr.split(" ")[0]; // 提取出 "-5", "+5", "0" 等
+
+        if ("0".equals(dBValue)) {
+            return "1.0"; // 0 dB 相当于不做任何音量增益（线性增益 1.0）
+        }
+
+        // 修复：只去掉正号"+"，必须完好地保留负号"-"！
+        String cleanValue = dBValue.replace("+", "");
+
+        // 返回带 dB 单位的字符串，例如 "5dB" 或 "-5dB"
+        return cleanValue + "dB";
     }
 
     private void openOutputFolder() {
