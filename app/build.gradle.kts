@@ -15,8 +15,19 @@ android {
         ndk {
             abiFilters.add("arm64-v8a")//只考虑x64版本
         }
+        resourceConfigurations += listOf("zh", "en")
     }
+    buildTypes {
+        release {
+            isMinifyEnabled = true      // R8 压缩、删除无用代码
+            isShrinkResources = true    // 删除无用资源
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
 
+        }
+    }
 
     buildFeatures {
         viewBinding = true
